@@ -15,20 +15,30 @@
  *  limitations under the License.
  *****************************************************************************/
 
-#include <stdint.h>  // uint*_t
+#include <stdint.h>   // uint*_t
+#include <stddef.h>   // size_t
+#include <stdbool.h>  // bool
+#include <string.h>   // memmove
 
-#include "get_app_name.h"
-#include "../constants.h"
-#include "../globals.h"
-#include "../io.h"
-#include "../sw.h"
-#include "../types.h"
-#include "common/buffer.h"
+#include "os.h"
+#include "cx.h"
 
-int handler_get_app_name() {
-    _Static_assert(APPNAME_LEN < MAX_APPNAME_LEN, "APPNAME must be at most 64 characters!");
+#include "address.h"
 
-    buffer_t rdata = {.ptr = (uint8_t *) PIC(APPNAME), .size = APPNAME_LEN, .offset = 0};
+#include "transaction/types.h"
 
-    return io_send_response(&rdata, SW_OK);
+bool address_from_pubkey(uint8_t public_key[static 64], uint8_t *out, size_t out_len) {
+    uint8_t address[32] = {0};
+    cx_sha3_t sha3;
+
+    if (out_len < ADDRESS_LEN) {
+        return false;
+    }
+
+    cx_keccak_init(&sha3, 256);
+    cx_hash((cx_hash_t *) &sha3, CX_LAST, public_key, 64, address, sizeof(address));
+
+    memmove(out, address + sizeof(address) - ADDRESS_LEN, ADDRESS_LEN);
+
+    return true;
 }
